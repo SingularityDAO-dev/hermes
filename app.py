@@ -42,7 +42,7 @@ conversations: Dict[str, List[dict]] = {}
 
 class AgentCreate(BaseModel):
     name: str
-    model: str = "openrouter:anthropic/claude-3.5-sonnet"
+    model: str = "kimi-k2.5"
     personality: Optional[str] = "default"
     tools: List[str] = ["web_search", "file_system", "code_execution"]
 
@@ -276,7 +276,7 @@ Be concise but thorough in your responses."""
                 "Content-Type": "application/json"
             },
             json={
-                "model": agent.get("model", "anthropic/claude-3.5-sonnet").replace("openrouter:", ""),
+                "model": agent.get("model", "kimi-k2.5").replace("openrouter:", ""),
                 "messages": messages,
                 "temperature": 0.7,
                 "max_tokens": 2000
