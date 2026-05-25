@@ -1,6 +1,7 @@
 """
 Hermes Hub - FastAPI wrapper for NousResearch Hermes Agent
 Integrates with Obsidian vault for persistent memory.
+Uses HyperCLI for LLM inference.
 """
 
 from fastapi import FastAPI, HTTPException, BackgroundTasks
@@ -13,6 +14,7 @@ import json
 import uuid
 import subprocess
 import os
+import requests
 
 app = FastAPI(title="Hermes Hub", version="1.0.0")
 
@@ -26,6 +28,10 @@ app.add_middleware(
 # Config
 VAULT_PATH = Path(os.getenv("OBSIDIAN_VAULT", "/Users/mrrobot1/vaults/master-vault"))
 HERMES_DIR = Path.home() / ".hermes"
+
+# HyperCLI Inference Config
+HYPERCLI_API_KEY = os.getenv("HYPERCLI_API_KEY", "")
+HYPERCLI_API_BASE = os.getenv("HYPERCLI_API_BASE", "https://api.hypercli.com/v1")
 
 # In-memory stores
 agents: Dict[str, dict] = {}
@@ -231,20 +237,61 @@ def send_message(agent_id: str, msg: MessageSend):
 
 
 def generate_agent_response(agent: dict, user_input: str) -> str:
-    """Generate a simulated agent response. In production, calls Hermes."""
-    # This is a placeholder - real implementation would call hermes CLI
-    responses = {
-        "hello": f"Hello! I'm {agent['name']}, powered by Hermes. How can I help you today?",
-        "status": f"I'm running with model {agent['model']}. All systems operational.",
-        "memory": "I can read and write to Obsidian vault for persistent memory. What would you like me to remember?",
-    }
+    """Generate agent response via HyperCLI inference."""
     
-    lower_input = user_input.lower()
-    for key, resp in responses.items():
-        if key in lower_input:
-            return resp
+    # Build system prompt from agent config
+    system_prompt = f"""You are {agent['name']}, an AI agent powered by Hermes Hub.
+Role: {agent['role']}
+Capabilities: {', '.join(agent.get('capabilities', []))}
+Personality: {agent.get('personality', 'helpful and professional')}
+
+You have access to an Obsidian vault for persistent memory storage.
+You can create skills, store memories, and recall past conversations.
+Be concise but thorough in your responses."""
     
-    return f"I received your message: '{user_input}'. I'm processing this through my Hermes agent core with {agent['model']}."
+    # Build messages from conversation history
+    messages = [{"role": "system", "content": system_prompt}]
+    
+    # Add recent conversation history (last 10 messages)
+    agent_id = agent['id']
+    if agent_id in conversations:
+        for msg in conversations[agent_id][-10:]:
+            messages.append({
+                "role": msg.get("role", "user"),
+                "content": msg["content"]
+            })
+    
+    # Add current user input
+    messages.append({"role": "user", "content": user_input})
+    
+    # Call HyperCLI API
+    if not HYPERCLI_API_KEY:
+        return f"[HyperCLI not configured] I received: '{user_input}'. Please set HYPERCLI_API_KEY environment variable."
+    
+    try:
+        response = requests.post(
+            f"{HYPERCLI_API_BASE}/chat/completions",
+            headers={
+                "Authorization": f"Bearer {HYPERCLI_API_KEY}",
+                "Content-Type": "application/json"
+            },
+            json={
+                "model": agent.get("model", "anthropic/claude-3.5-sonnet").replace("openrouter:", ""),
+                "messages": messages,
+                "temperature": 0.7,
+                "max_tokens": 2000
+            },
+            timeout=60
+        )
+        
+        if response.status_code == 200:
+            data = response.json()
+            return data["choices"][0]["message"]["content"]
+        else:
+            return f"[HyperCLI Error {response.status_code}] {response.text[:200]}"
+            
+    except Exception as e:
+        return f"[Inference Error] {str(e)}. Please check HyperCLI configuration."
 
 
 def write_conversation_to_vault(agent_id: str, user_msg: dict, agent_msg: dict):
