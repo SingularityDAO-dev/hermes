@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hermes Hub - Agent Orchestration</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0f172a;
+            color: #e2e8f0;
+            min-height: 100vh;
+        }
+        .container { max-width: 1200px; margin: 0 auto; padding: 24px; }
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 32px;
+            padding-bottom: 24px;
+            border-bottom: 1px solid #334155;
+        }
+        h1 { font-size: 28px; color: #f8fafc; }
+        h1 span { color: #f59e0b; }
+        .subtitle { color: #64748b; font-size: 14px; margin-top: 4px; }
+        .status-badge {
+            background: #10b981;
+            color: white;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+        }
+        .grid { display: grid; grid-template-columns: 300px 1fr; gap: 24px; }
+        .sidebar { background: #1e293b; border-radius: 12px; padding: 20px; border: 1px solid #334155; }
+        .main { background: #1e293b; border-radius: 12px; padding: 24px; border: 1px solid #334155; }
+        .section-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            color: #f8fafc;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .agent-list { display: flex; flex-direction: column; gap: 8px; }
+        .agent-item {
+            background: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            padding: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .agent-item:hover { border-color: #f59e0b; }
+        .agent-item.active { border-color: #f59e0b; background: #1e293b; }
+        .agent-name { font-weight: 600; color: #f8fafc; }
+        .agent-meta { font-size: 12px; color: #64748b; margin-top: 2px; }
+        .agent-status {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 6px;
+        }
+        .status-running { background: #10b981; }
+        .status-stopped { background: #ef4444; }
+        .status-created { background: #f59e0b; }
+        .btn {
+            background: #f59e0b;
+            color: #0f172a;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+        .btn:hover { background: #fbbf24; }
+        .btn-secondary {
+            background: #334155;
+            color: #e2e8f0;
+        }
+        .btn-secondary:hover { background: #475569; }
+        .btn-sm { padding: 6px 12px; font-size: 12px; }
+        .form-group { margin-bottom: 16px; }
+        .form-group label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 6px;
+            color: #94a3b8;
+        }
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%;
+            background: #0f172a;
+            border: 1px solid #334155;
+            color: #e2e8f0;
+            padding: 10px 12px;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+            outline: none;
+            border-color: #f59e0b;
+        }
+        .chat-container {
+            display: flex;
+            flex-direction: column;
+            height: 500px;
+        }
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+            background: #0f172a;
+            border-radius: 8px;
+            margin-bottom: 16px;
+        }
+        .message {
+            margin-bottom: 12px;
+            padding: 12px;
+            border-radius: 8px;
+            max-width: 80%;
+        }
+        .message-user {
+            background: #f59e0b;
+            color: #0f172a;
+            margin-left: auto;
+        }
+        .message-assistant {
+            background: #334155;
+            color: #e2e8f0;
+        }
+        .message-time {
+            font-size: 11px;
+            opacity: 0.7;
+            margin-top: 4px;
+        }
+        .chat-input {
+            display: flex;
+            gap: 8px;
+        }
+        .chat-input input {
+            flex: 1;
+            background: #0f172a;
+            border: 1px solid #334155;
+            color: #e2e8f0;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+        .tabs {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #334155;
+            padding-bottom: 12px;
+        }
+        .tab {
+            padding: 8px 16px;
+            cursor: pointer;
+            border-radius: 6px;
+            font-size: 14px;
+            color: #64748b;
+            transition: all 0.2s;
+        }
+        .tab:hover { color: #e2e8f0; }
+        .tab.active { background: #334155; color: #f8fafc; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .memory-list { display: flex; flex-direction: column; gap: 8px; }
+        .memory-item {
+            background: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            padding: 12px;
+        }
+        .memory-preview { font-size: 13px; color: #94a3b8; margin-top: 4px; }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+        .stat-card {
+            background: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            padding: 16px;
+            text-align: center;
+        }
+        .stat-value {
+            font-size: 28px;
+            font-weight: 700;
+            color: #f59e0b;
+        }
+        .stat-label {
+            font-size: 12px;
+            color: #64748b;
+            margin-top: 4px;
+        }
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #64748b;
+        }
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.7);
+            z-index: 100;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-overlay.active { display: flex; }
+        .modal {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 12px;
+            padding: 24px;
+            width: 90%;
+            max-width: 500px;
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .modal-title { font-size: 18px; font-weight: 600; }
+        .close-btn {
+            background: none;
+            border: none;
+            color: #64748b;
+            font-size: 20px;
+            cursor: pointer;
+        }
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div>
+                <h1>☤ <span>Hermes</span> Hub</h1>
+                <div class="subtitle">Agent Orchestration with Obsidian Memory</div>
+            </div>
+            <div>
+                <span class="status-badge" id="systemStatus">● Online</span>
+            </div>
+        </header>
+
+        <div class="stats-grid" id="statsGrid">
+            <div class="stat-card">
+                <div class="stat-value" id="statAgents">0</div>
+                <div class="stat-label">Agents</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="statMemories">0</div>
+                <div class="stat-label">Memories</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="statSkills">0</div>
+                <div class="stat-label">Skills</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="statConversations">0</div>
+                <div class="stat-label">Conversations</div>
+            </div>
+        </div>
+
+        <div class="grid">
+            <div class="sidebar">
+                <div class="section-title">🤖 Agents</div>
+                <div class="agent-list" id="agentList">
+                    <div class="empty-state">No agents yet. Create one to start.</div>
+                </div>
+                <button class="btn" style="width: 100%; margin-top: 16px;" onclick="showCreateModal()">+ Create Agent</button>
+            </div>
+
+            <div class="main">
+                <div class="tabs">
+                    <div class="tab active" onclick="switchTab('chat')">💬 Chat</div>
+                    <div class="tab" onclick="switchTab('memory')">🧠 Memory</div>
+                    <div class="tab" onclick="switchTab('skills')">🔧 Skills</div>
+                    <div class="tab" onclick="switchTab('config')">⚙️ Config</div>
+                </div>
+
+                <div id="tab-chat" class="tab-content active">
+                    <div id="chatPlaceholder" class="empty-state">
+                        Select an agent to start chatting
+                    </div>
+                    <div id="chatContainer" class="chat-container hidden">
+                        <div class="chat-messages" id="chatMessages"></div>
+                        <div class="chat-input">
+                            <input type="text" id="messageInput" placeholder="Message agent..." onkeypress="if(event.key==='Enter')sendMessage()">
+                            <button class="btn" onclick="sendMessage()">Send</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="tab-memory" class="tab-content">
+                    <div id="memoryPlaceholder" class="empty-state">
+                        Select an agent to view memories
+                    </div>
+                    <div id="memoryContainer" class="hidden">
+                        <div style="margin-bottom: 16px;">
+                            <button class="btn btn-secondary btn-sm" onclick="showWriteMemory()">+ Write Memory</button>
+                        </div>
+                        <div class="memory-list" id="memoryList"></div>
+                    </div>
+                </div>
+
+                <div id="tab-skills" class="tab-content">
+                    <div id="skillsPlaceholder" class="empty-state">
+                        Select an agent to view skills
+                    </div>
+                    <div id="skillsContainer" class="hidden">
+                        <div style="margin-bottom: 16px;">
+                            <button class="btn btn-secondary btn-sm" onclick="showCreateSkill()">+ Create Skill</button>
+                        </div>
+                        <div id="skillsList"></div>
+                    </div>
+                </div>
+
+                <div id="tab-config" class="tab-content">
+                    <div id="configPlaceholder" class="empty-state">
+                        Select an agent to view configuration
+                    </div>
+                    <div id="configContainer" class="hidden">
+                        <pre id="configJson" style="background: #0f172a; padding: 16px; border-radius: 8px; overflow-x: auto; font-size: 13px;"></pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create Agent Modal -->
+    <div class="modal-overlay" id="createModal">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title">Create Hermes Agent</div>
+                <button class="close-btn" onclick="hideModal('createModal')">&times;</button>
+            </div>
+            <div class="form-group">
+                <label>Name</label>
+                <input type="text" id="agentName" placeholder="e.g., Research Assistant">
+            </div>
+            <div class="form-group">
+                <label>Model</label>
+                <select id="agentModel">
+                    <option value="openrouter:anthropic/claude-3.5-sonnet">Claude 3.5 Sonnet</option>
+                    <option value="openrouter:openai/gpt-4o">GPT-4o</option>
+                    <option value="openrouter:meta-llama/llama-3.1-405b">Llama 3.1 405B</option>
+                    <option value="nous:hermes-3">Hermes 3</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Personality</label>
+                <input type="text" id="agentPersonality" placeholder="e.g., Helpful, precise, technical">
+            </div>
+            <button class="btn" style="width: 100%;" onclick="createAgent()">Create Agent</button>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = window.location.origin.replace(':3000', ':8000');
+        let currentAgent = null;
+        let agents = [];
+
+        async function fetchAgents() {
+            try {
+                const res = await fetch(`${API_BASE}/agents`);
+                const data = await res.json();
+                agents = data.agents;
+                renderAgentList();
+                updateStats();
+            } catch (e) {
+                console.error('Failed to fetch agents:', e);
+            }
+        }
+
+        async function updateStats() {
+            try {
+                const res = await fetch(`${API_BASE}/vault/stats`);
+                const data = await res.json();
+                document.getElementById('statAgents').textContent = data.agents || 0;
+                document.getElementById('statMemories').textContent = data.memories || 0;
+                document.getElementById('statSkills').textContent = data.skills || 0;
+                document.getElementById('statConversations').textContent = data.conversations || 0;
+            } catch (e) {
+                console.error('Failed to fetch stats:', e);
+            }
+        }
+
+        function renderAgentList() {
+            const list = document.getElementById('agentList');
+            if (agents.length === 0) {
+                list.innerHTML = '<div class="empty-state">No agents yet. Create one to start.</div>';
+                return;
+            }
+            list.innerHTML = agents.map(a => `
+                <div class="agent-item ${currentAgent?.id === a.id ? 'active' : ''}" onclick="selectAgent('${a.id}')">
+                    <div class="agent-name">
+                        <span class="agent-status status-${a.status}"></span>
+                        ${a.name}
+                    </div>
+                    <div class="agent-meta">${a.model} • ${a.status}</div>
+                </div>
+            `).join('');
+        }
+
+        async function selectAgent(agentId) {
+            currentAgent = agents.find(a => a.id === agentId);
+            renderAgentList();
+            
+            document.getElementById('chatPlaceholder').classList.add('hidden');
+            document.getElementById('chatContainer').classList.remove('hidden');
+            document.getElementById('memoryPlaceholder').classList.add('hidden');
+            document.getElementById('memoryContainer').classList.remove('hidden');
+            document.getElementById('skillsPlaceholder').classList.add('hidden');
+            document.getElementById('skillsContainer').classList.remove('hidden');
+            document.getElementById('configPlaceholder').classList.add('hidden');
+            document.getElementById('configContainer').classList.remove('hidden');
+            
+            // Load conversation
+            await loadConversation();
+            // Load memories
+            await loadMemories();
+            // Load skills
+            await loadSkills();
+            // Load config
+            await loadConfig();
+        }
+
+        async function loadConversation() {
+            if (!currentAgent) return;
+            try {
+                const res = await fetch(`${API_BASE}/agents/${currentAgent.id}/conversation`);
+                const data = await res.json();
+                const container = document.getElementById('chatMessages');
+                container.innerHTML = data.messages.map(m => `
+                    <div class="message message-${m.role}">
+                        <div>${escapeHtml(m.content)}</div>
+                        <div class="message-time">${new Date(m.timestamp).toLocaleTimeString()}</div>
+                    </div>
+                `).join('');
+                container.scrollTop = container.scrollHeight;
+            } catch (e) {
+                console.error('Failed to load conversation:', e);
+            }
+        }
+
+        async function sendMessage() {
+            if (!currentAgent) return;
+            const input = document.getElementById('messageInput');
+            const content = input.value.trim();
+            if (!content) return;
+            
+            input.value = '';
+            
+            // Add user message to UI immediately
+            const container = document.getElementById('chatMessages');
+            container.innerHTML += `
+                <div class="message message-user">
+                    <div>${escapeHtml(content)}</div>
+                    <div class="message-time">${new Date().toLocaleTimeString()}</div>
+                </div>
+            `;
+            container.scrollTop = container.scrollHeight;
+            
+            try {
+                const res = await fetch(`${API_BASE}/agents/${currentAgent.id}/message`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ agent_id: currentAgent.id, content })
+                });
+                const data = await res.json();
+                
+                container.innerHTML += `
+                    <div class="message message-assistant">
+                        <div>${escapeHtml(data.response)}</div>
+                        <div class="message-time">${new Date().toLocaleTimeString()}</div>
+                    </div>
+                `;
+                container.scrollTop = container.scrollHeight;
+            } catch (e) {
+                console.error('Failed to send message:', e);
+            }
+        }
+
+        async function loadMemories() {
+            if (!currentAgent) return;
+            try {
+                const res = await fetch(`${API_BASE}/memory/read/${currentAgent.id}?limit=20`);
+                const data = await res.json();
+                const list = document.getElementById('memoryList');
+                if (data.memories.length === 0) {
+                    list.innerHTML = '<div class="empty-state">No memories yet</div>';
+                } else {
+                    list.innerHTML = data.memories.map(m => `
+                        <div class="memory-item">
+                            <div style="font-weight: 600; font-size: 13px;">${m.file}</div>
+                            <div class="memory-preview">${escapeHtml(m.preview)}</div>
+                        </div>
+                    `).join('');
+                }
+            } catch (e) {
+                console.error('Failed to load memories:', e);
+            }
+        }
+
+        async function loadSkills() {
+            if (!currentAgent) return;
+            try {
+                const res = await fetch(`${API_BASE}/skills/${currentAgent.id}`);
+                const data = await res.json();
+                const list = document.getElementById('skillsList');
+                if (data.skills.length === 0) {
+                    list.innerHTML = '<div class="empty-state">No skills yet</div>';
+                } else {
+                    list.innerHTML = data.skills.map(s => `
+                        <div class="memory-item">
+                            <div style="font-weight: 600;">${s.name}</div>
+                            <div class="memory-preview">${s.description}</div>
+                        </div>
+                    `).join('');
+                }
+            } catch (e) {
+                console.error('Failed to load skills:', e);
+            }
+        }
+
+        async function loadConfig() {
+            if (!currentAgent) return;
+            try {
+                const res = await fetch(`${API_BASE}/agents/${currentAgent.id}`);
+                const data = await res.json();
+                document.getElementById('configJson').textContent = JSON.stringify(data, null, 2);
+            } catch (e) {
+                console.error('Failed to load config:', e);
+            }
+        }
+
+        async function createAgent() {
+            const name = document.getElementById('agentName').value;
+            const model = document.getElementById('agentModel').value;
+            const personality = document.getElementById('agentPersonality').value;
+            
+            if (!name) return alert('Please enter a name');
+            
+            try {
+                const res = await fetch(`${API_BASE}/agents/create`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, model, personality, tools: ['web_search', 'file_system'] })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    hideModal('createModal');
+                    await fetchAgents();
+                    selectAgent(data.agent_id);
+                }
+            } catch (e) {
+                console.error('Failed to create agent:', e);
+            }
+        }
+
+        function showCreateModal() {
+            document.getElementById('createModal').classList.add('active');
+        }
+
+        function hideModal(id) {
+            document.getElementById(id).classList.remove('active');
+        }
+
+        function switchTab(tab) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            event.target.classList.add('active');
+            document.getElementById(`tab-${tab}`).classList.add('active');
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Init
+        fetchAgents();
+        setInterval(fetchAgents, 5000);
+    </script>
+</body>
+</html>
